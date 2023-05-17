@@ -1,0 +1,3 @@
+PATH_TO_VIDEO="/content/TrackNet/example_datasets/video_dataset/videos/VolleyballShortClip.mp4"
+PATH_TO_TRAINED_WEIGHTS="/content/TrackNet/weights/2023-05-13_10-09-23/best.pt"
+python predict.py "C:\Users\HI\Downloads\tennis ball detection.v6i.coco\example_datasets\video_dataset\videos\VolleyballShortClip.mp4" --weights "C:\Users\HI\Downloads\tennis ball detection.v6i.coco\weights\2023-05-17_23-24-07\best.pt" --device cuda
