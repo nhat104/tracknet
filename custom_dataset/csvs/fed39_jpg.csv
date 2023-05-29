@@ -1,2 +1,2 @@
-frame_num,x,y,visible
-0,0.9916666666666667,0.22265625,0
+frame_num,x,y,visible,trajectory
+0,0.9916666666666667,0.22265625,0,0
