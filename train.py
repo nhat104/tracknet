@@ -285,5 +285,6 @@ if __name__ == '__main__':
     else:
         print("Starting training")
         training_loop(opt, device, model, writer, loss_function, optimizer, train_loader, val_loader, save_path)
-
-    wandb.finish()
+        
+    if opt.wandb:
+        wandb.finish()
