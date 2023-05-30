@@ -104,6 +104,7 @@ def parse_opt():
     parser.add_argument('--save_images', action='store_true', help="Save output examples to results folder.")
     parser.add_argument('--grayscale', action='store_true', help='Use grayscale images instead of RGB.')
     parser.add_argument('--single_batch_overfit', action='store_true', help='Overfit the model on a single batch.')
+    parser.add_argument('--session_name', type=str, default="tracknet")
     opt = parser.parse_args()
     return opt
 
@@ -267,7 +268,8 @@ if __name__ == '__main__':
         import wandb
         wandb.init(
             project=opt.project_name,
-            config=vars(opt)
+            config=vars(opt),
+            name=vars(opt)['session_name']
         )
         wandb.watch(model, criterion=loss_function, log='all', log_freq=opt.log_period)
 
