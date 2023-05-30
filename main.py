@@ -3,14 +3,19 @@ import cv2
 import os
 import shutil
 
-data = json.load(open("images/valid/_annotations.coco.json", "r"))
+data = json.load(open("images/test/_annotations.coco.json", "r"))
 images = data["images"]
 annotations = data["annotations"]
 
-annotation_base_dir = "./custom_dataset_1/csvs"
+annotation_base_dir = "./custom_dataset/csvs"
 
-for image, annotation in zip(images, annotations):
-  folder_name = os.path.join("./custom_dataset_1/images", image["file_name"].split(".")[0])
+print(len(images))
+print(len(annotations))
+
+for annotation in annotations:
+  image_id = annotation['image_id']
+  image = images[image_id]
+  folder_name = os.path.join("./custom_dataset/images", image["file_name"].split(".")[0])
   writer = open(os.path.join(annotation_base_dir, image["file_name"].split(".")[0] + ".csv"), "w")
   
   point_center = (int(annotation["bbox"][0] + annotation["bbox"][2] / 2), int(annotation["bbox"][1] + annotation["bbox"][3] / 2))
@@ -30,6 +35,6 @@ for image, annotation in zip(images, annotations):
     os.makedirs(folder_name)
 
   shutil.copy(
-    os.path.join("images/valid", image["file_name"]),
+    os.path.join("images/test", image["file_name"]),
     os.path.join(folder_name, "0.jpg")
   )

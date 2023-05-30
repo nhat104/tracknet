@@ -1,29 +1,26 @@
 import cv2
-import json
+import pandas as pd
 import os
 
-data = json.load(open("images/train/_annotations.coco.json", "r"))
-images = data["images"]
-annotations = data["annotations"]
+imgs = os.listdir("./custom_dataset/images")
 
-train_annotation = "train_annotation.txt"
-annotation_base_dir = "./custom_dataset_1/csvs"
+choose_img = 50
 
-images = images[0]
-annotations = annotations[0]
+img_path = os.path.join("./custom_dataset/images", imgs[choose_img], "0.jpg")
+annotation_path = os.path.join("./custom_dataset/csvs", imgs[choose_img] + ".csv")
 
-# for image, annotation in zip(images, annotations):
-point_center = (int(annotations["bbox"][0] + annotations["bbox"][2] / 2), int(annotations["bbox"][1] + annotations["bbox"][3] / 2))
-width = images['width']
-height = images['height']
+print(imgs[choose_img])
 
-pt1 = (point_center[0] - 5, point_center[1] - 5)
-pt2 = (point_center[0] + 5, point_center[1] + 5)
+img = cv2.imread(img_path)
+df = pd.read_csv(annotation_path)
 
-img = cv2.imread(os.path.join("images/train", images['file_name']))
-cv2.rectangle(img, pt1, pt2, (255, 0, 0), thickness=2)
-# cv2.imshow("", img)
-# cv2.waitKey()
+h, w = img.shape[:2]
+x, y = df['x'].iloc[0], df['y'].iloc[0]
+x, y = int(x * w), int(y * h)
 
-x = point_center[0] / width
-y = point_center[1] / height
+pt1 = (x-5, y-5)
+pt2 = (x+5, y+5)
+
+cv2.rectangle(img, pt1, pt2, (255, 0, 0), 2)
+cv2.imshow("", img)
+cv2.waitKey()
