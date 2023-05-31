@@ -3,6 +3,8 @@ from TrackNet import TrackNet
 import torchvision
 import torch
 import cv2 as cv
+import os
+import numpy as np
 
 
 def get_ball_position(img, opt, original_img_=None):
@@ -26,11 +28,11 @@ def get_ball_position(img, opt, original_img_=None):
 
 def parse_opt():
     parser = ArgumentParser()
-    parser.add_argument('video', type=str, default='video.mp4', help='Path to video.')
+#    parser.add_argument('video', type=str, default='video.mp4', help='Path to video.')
     parser.add_argument('--save_path', type=str, default='predicted.mp4', help='Path to result video.')
     parser.add_argument('--weights', type=str, default='weights', help='Path to trained model weights.')
     parser.add_argument('--sequence_length', type=int, default=3, help='Length of the images sequence used as X.')
-    parser.add_argument('--image_size', type=int, nargs=2, default=[512, 1024], help='Size of the images used for training (y, x).')
+    parser.add_argument('--image_size', type=int, nargs=2, default=[720, 1280], help='Size of the images used for training (y, x).')
     parser.add_argument('--device', type=str, default='cpu', help='Device to use (cpu, cuda, mps).')
     parser.add_argument('--one_output_frame', action='store_true', help='Demand only one output frame instead of three.')
     parser.add_argument('--grayscale', action='store_true', help='Use grayscale images instead of RGB.')
@@ -43,7 +45,7 @@ def parse_opt():
 
 if __name__ == '__main__':
     opt = parse_opt()
-    img_path = opt['image_path']
+    img_path = vars(opt)['image_path']
     
     opt.dropout = 0
     device = torch.device(opt.device)
@@ -54,13 +56,22 @@ if __name__ == '__main__':
     img = cv.imread(img_path)
     frames_torch = []
     frame_torch = torch.tensor(img).permute(2, 0, 1).float().to(device) / 255
-    frame_torch = torchvision.transforms.functional.resize(frame_torch, opt.image_size)
+    frame_torch = torchvision.transforms.functional.resize(frame_torch, opt.image_size, antialias=True)
     frames_torch.append(frame_torch)
     frames_torch = torch.cat(frames_torch, dim=0).unsqueeze(0)
     pred = model(frames_torch)
     pred = pred[0, :, :, :].detach().cpu().numpy()
     
     pred_frame = pred[0, :, :]
-    print(get_ball_position(pred_frame, opt, original_img_=img))
+    ball_position = np.argmax(pred_frame)
+    y, x = np.where(pred_frame == np.max(pred_frame))
+    x, y = x[0], y[0]
+    print(x, y)
     
-    
+    print(get_ball_position(pred_frame, opt, img))
+
+    pt1, pt2 = (x-10, y-10), (x+10, y+10)
+    cv.rectangle(img, pt1, pt2, (0, 0, 255), 5)
+
+    output_path = img_path.split("\\")[-1]
+    cv.imwrite(os.path.join("output", output_path + ".jpg"), img)

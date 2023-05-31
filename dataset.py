@@ -84,7 +84,7 @@ class GenericDataset(Dataset):
             df['h'] = 50
         if self.one_output_frame:
             df = df.loc[df['frame_num'] == rel_idx + self.sequence_length // 2].iloc[0]
-            heatmaps = self.generate_heatmap_2(df["x"], df["y"], df["w"], df["h"])
+            heatmaps = self.generate_heatmap_3(df["x"], df["y"], df["w"], df["h"])
             # heatmaps = self.generate_heatmap(df["x"], df["y"], 100, 50)
 
             heatmaps = np.expand_dims(heatmaps, axis=0)
@@ -92,7 +92,7 @@ class GenericDataset(Dataset):
             df = df.loc[df['frame_num'].isin(range(rel_idx, rel_idx + self.sequence_length))]
             heatmaps = []
             for _, row in df.iterrows():
-                heatmaps.append(self.generate_heatmap_2(row["x"], row["y"], row["w"], row["h"]))
+                heatmaps.append(self.generate_heatmap_3(row["x"], row["y"], row["w"], row["h"]))
                 # heatmaps.append(self.generate_heatmap(row["x"], row["y"], 100, 50))
             heatmaps = np.stack(heatmaps, axis=0)
 
@@ -145,6 +145,36 @@ class GenericDataset(Dataset):
 
         image = np.exp(-4*np.log(2) * ((x-x0)**2/width**2 + (y-y0)**2/height**2))
         return image
+    
+    # TODO: change sigma for bigger object
+    def generate_heatmap_3(self, center_x, center_y, width, height):
+        """Generate heatmap based on original paper
+
+        Args:
+            center_x (int): _description_
+            center_y (int): _description_
+            width (int): _description_
+            height (int): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        
+        x0 = self.image_size[1]*center_x
+        y0 = self.image_size[0]*center_y
+        
+        x = [np.arange(0, self.image_size[1], 1, float)] * self.image_size[0]
+        x = np.stack(x)
+        y = [np.arange(0, self.image_size[0], 1, float)] * self.image_size[1]
+        y = np.stack(y).T
+
+        pi = np.pi
+        sigma = 10
+
+        G = (x - x0) ** 2 + (y - y0) ** 2
+        G = -G / (2 * sigma)
+        G = np.exp(G)
+        return G
 
 
 
@@ -200,7 +230,7 @@ class ImagesDataset(GenericDataset):
             else:
                 raise Exception(f"Image {rel_idx} in folder {img_dir} not found")
 
-            img = torchvision.transforms.functional.resize(img, self.image_size)
+            img = torchvision.transforms.functional.resize(img, self.image_size, antialias=True)
             img = img.type(torch.float32)
             img *= 1 / 255
             images.append(img)
@@ -235,7 +265,7 @@ class VideosDataset(GenericDataset):
             img = img.transpose(2, 0, 1)
             img = torch.from_numpy(img)
             img = torchvision.transforms.functional.resize(
-                img, self.image_size)
+                img, self.image_size, antialias=True)
             img = img.type(torch.float32)
             img *= 1 / 255
             images.append(img)

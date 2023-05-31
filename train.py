@@ -237,7 +237,8 @@ if __name__ == '__main__':
     if opt.weights:
         model.load_state_dict(torch.load(opt.weights))
 
-    optimizer = torch.optim.SGD(model.parameters(), lr=opt.lr, momentum=opt.momentum, weight_decay=opt.weight_decay)
+    # optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr, momentum=opt.momentum, weight_decay=opt.weight_decay)
+    optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr, weight_decay=opt.weight_decay)
 
 
     if opt.type == 'auto':
