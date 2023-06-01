@@ -27,6 +27,12 @@ if __name__ == "__main__":
   for annotation in annotations:
     image_id = annotation['image_id']
     image = images[image_id]
+    
+    # check image exist
+    if not os.path.exists(os.path.join(raw_path, image["file_name"])):
+      continue
+    
+    #  write annotation
     folder_name = os.path.join(destination_path, "images", image["file_name"].split(".")[0])
     writer = open(os.path.join(annotation_base_dir, image["file_name"].split(".")[0] + ".csv"), "w")
     
