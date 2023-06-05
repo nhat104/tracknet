@@ -321,21 +321,5 @@ if __name__ == '__main__':
             prev_losses = sum(val_losses) / len(val_losses)
             wandb.log({"train/val-loss": sum(val_losses) / len(val_losses)})
         
-        
-            images = [
-                torch.unsqueeze(y[0,0,:,:], 0).repeat(3,1,1).cpu(),
-                torch.unsqueeze(y_pred[0,0,:,:], 0).repeat(3,1,1).cpu(),
-            ]
-            if opt.grayscale:
-                images.append(X[0,:,:,:].cpu())
-                res = X[0,:,:,:] * y[0,0,:,:]
-            else:
-                images.append(X[0,(2,1,0),:,:].cpu())
-                res = X[0, (2,1,0),:,:] * y[0,0,:,:]
-            images.append(res.cpu())
-            grid = torchvision.utils.make_grid(images, nrow=1)#, padding=2)
-            if opt.wandb:
-                wandb_grid = wandb.Image(grid, caption="Image, predicted output and ball mask")
-                wandb.log({"ImageResult": wandb_grid})
     if opt.wandb:
         wandb.finish()

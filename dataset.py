@@ -84,18 +84,18 @@ class GenericDataset(Dataset):
             df['h'] = 5
         if self.one_output_frame:
             df = df.loc[df['frame_num'] == rel_idx + self.sequence_length // 2].iloc[0]
-            # heatmaps = self.generate_heatmap_3(df["x"], df["y"], df["w"], df["h"])
+            heatmaps = self.generate_heatmap_3(df["x"], df["y"], df["w"], df["h"])
             # heatmaps = self.generate_heatmap(df["x"], df["y"], 100, 50)
-            heatmaps = self.generate_heatmap_2(df["x"], df["y"], df["w"], df["h"])
+            # heatmaps = self.generate_heatmap_2(df["x"], df["y"], df["w"], df["h"])
 
             heatmaps = np.expand_dims(heatmaps, axis=0)
         else:
             df = df.loc[df['frame_num'].isin(range(rel_idx, rel_idx + self.sequence_length))]
             heatmaps = []
             for _, row in df.iterrows():
-                # heatmaps.append(self.generate_heatmap_3(row["x"], row["y"], row["w"], row["h"]))
+                heatmaps.append(self.generate_heatmap_3(row["x"], row["y"], row["w"], row["h"]))
                 # heatmaps.append(self.generate_heatmap(row["x"], row["y"], 100, 50))
-                heatmaps.append(self.generate_heatmap_2(row["x"], row["y"], row["w"], row["h"]))
+                # heatmaps.append(self.generate_heatmap_2(row["x"], row["y"], row["w"], row["h"]))
             heatmaps = np.stack(heatmaps, axis=0)
 
         heatmaps = torch.tensor(heatmaps, requires_grad=False, dtype=torch.float32)
