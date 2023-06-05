@@ -238,6 +238,7 @@ if __name__ == '__main__':
         model.load_state_dict(torch.load(opt.weights))
 
     optimizer = torch.optim.SGD(model.parameters(), lr=opt.lr, momentum=opt.momentum, weight_decay=opt.weight_decay)
+    # optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr, weight_decay=opt.weight_decay)
 
 
     if opt.type == 'auto':
@@ -252,11 +253,18 @@ if __name__ == '__main__':
     train_size = int(opt.train_size * len(full_dataset))
     val_size = len(full_dataset) - train_size
     train_dataset, test_dataset = random_split(full_dataset, [train_size, val_size])
+    
+    print(len(full_dataset))
+    train_dataset = [full_dataset[0]]
+    test_dataset = [full_dataset[0]]
 
     train_loader = DataLoader(train_dataset, batch_size=opt.batch_size, shuffle=(not opt.no_shuffle))
     val_loader = DataLoader(test_dataset, batch_size=opt.val_batch_size)
 
     images, heatmaps = next(iter(train_loader))
+    
+    print(heatmaps.min(), heatmaps.max())
+    print(torch.where(heatmaps == heatmaps.max()))
 
     # initialize logging
     writer = None
@@ -280,13 +288,54 @@ if __name__ == '__main__':
     with open(save_path / "config.json", "w") as file:
         json.dump(vars(opt), file)
 
-    if opt.single_batch_overfit:
-        print('Overfitting on a single batch.')
-        training_loop(opt, device, model, writer, loss_function, optimizer, [(images, heatmaps)], None, save_path)
-
-    else:
-        print("Starting training")
-        training_loop(opt, device, model, writer, loss_function, optimizer, train_loader, val_loader, save_path)
+    num_epochs = opt.epochs
+    
+    prev_losses = 1e10
+    for epoch in tqdm(range(num_epochs)):
+        train_losses = []
+        val_losses = []
+        for batch_data in train_loader:
+            optimizer.zero_grad()
+            X, y = batch_data
+            X, y = X.to(device), y.to(device)
+            y_pred = model(X)
+            loss = loss_function(y_pred, y)
+            loss.backward()
+            optimizer.step()
+            train_losses.append(loss.detach().item())
         
+        wandb.log({"train/train-loss": sum(train_losses) / len(train_losses)})
+        torch.save(model.state_dict(), save_path / 'last.pth')
+        
+        
+        # validation
+        with torch.no_grad():
+            for batch_data in val_loader:
+                X, y = batch_data
+                X, y = X.to(device), y.to(device)
+                y_pred = model(X)
+                loss = loss_function(y_pred, y)
+                val_losses.append(loss.item())
+            if (sum(val_losses) / len(val_losses)) < prev_losses:
+                torch.save(model.state_dict(), save_path / 'best.pth')
+            prev_losses = sum(val_losses) / len(val_losses)
+            wandb.log({"train/val-loss": sum(val_losses) / len(val_losses)})
+        
+        
+            images = [
+                torch.unsqueeze(y[0,0,:,:], 0).repeat(3,1,1).cpu(),
+                torch.unsqueeze(y_pred[0,0,:,:], 0).repeat(3,1,1).cpu(),
+            ]
+            if opt.grayscale:
+                images.append(X[0,:,:,:].cpu())
+                res = X[0,:,:,:] * y[0,0,:,:]
+            else:
+                images.append(X[0,(2,1,0),:,:].cpu())
+                res = X[0, (2,1,0),:,:] * y[0,0,:,:]
+            images.append(res.cpu())
+            grid = torchvision.utils.make_grid(images, nrow=1)#, padding=2)
+            if opt.wandb:
+                wandb_grid = wandb.Image(grid, caption="Image, predicted output and ball mask")
+                wandb.log({"ImageResult": wandb_grid})
     if opt.wandb:
         wandb.finish()

@@ -7,6 +7,35 @@ import os
 import numpy as np
 
 
+def generate_heatmap_2(opt, center_x, center_y, width, height):
+    """ Make a square gaussian kernel.
+
+    size is the length of a side of the square
+    fwhm is full-width-half-maximum, which
+    can be thought of as an effective radius.
+
+    source: https://stackoverflow.com/questions/7687679/how-to-generate-2d-gaussian-with-python
+    """
+    x0 = opt.image_size[1]*center_x
+    y0 = opt.image_size[0]*center_y
+    
+    x = [np.arange(0, opt.image_size[1], 1, float)] * opt.image_size[0]
+    x = np.stack(x)
+    y = [np.arange(0, opt.image_size[0], 1, float)] * opt.image_size[1]
+    y = np.stack(y).T
+
+    sigma = 10
+
+    G = (x - x0) ** 2 + (y - y0) ** 2
+    G = -G / (2 * sigma)
+    G = np.exp(G)
+    
+    upper_G = G > 0.5
+    G[upper_G] = 1
+    G[~upper_G] = 0
+    return G
+
+
 def get_ball_position(img, opt, original_img_=None):
     ret, thresh = cv.threshold(img, opt.brightness_thresh, 1, 0)
     thresh = cv.convertScaleAbs(thresh)
@@ -45,33 +74,48 @@ def parse_opt():
 
 if __name__ == '__main__':
     opt = parse_opt()
-    img_path = vars(opt)['image_path']
+    # img_path = vars(opt)['image_path']
+    img_path = opt.image_path
     
     opt.dropout = 0
     device = torch.device(opt.device)
     model = TrackNet(opt).to(device)
-    model.load(opt.weights, device = opt.device)
+    # model.load(opt.weights, device = opt.device)
+    # model.eval()
+    model.load_state_dict(torch.load(opt.weights))
+    model = model.to(device)
     model.eval()
-
-    img = cv.imread(img_path)
-    frames_torch = []
-    frame_torch = torch.tensor(img).permute(2, 0, 1).float().to(device) / 255
-    frame_torch = torchvision.transforms.functional.resize(frame_torch, opt.image_size, antialias=True)
-    frames_torch.append(frame_torch)
-    frames_torch = torch.cat(frames_torch, dim=0).unsqueeze(0)
-    pred = model(frames_torch)
-    pred = pred[0, :, :, :].detach().cpu().numpy()
     
-    pred_frame = pred[0, :, :]
-    ball_position = np.argmax(pred_frame)
-    y, x = np.where(pred_frame == np.max(pred_frame))
-    x, y = x[0], y[0]
-    print(x, y)
+    img = torchvision.io.read_image(img_path)
+    img = torchvision.transforms.Grayscale()(img)
+    img = torchvision.transforms.functional.resize(img, opt.image_size, antialias=True)
+    img = img.type(torch.float32)
+    img *= 1 / 255
     
-    print(get_ball_position(pred_frame, opt, img))
+    img = img.unsqueeze(0)
+    
+    img = img.to(device)
+    
+    print(img.shape)
 
-    pt1, pt2 = (x-10, y-10), (x+10, y+10)
-    cv.rectangle(img, pt1, pt2, (0, 0, 255), 5)
-
-    output_path = img_path.split("\\")[-2]
-    cv.imwrite(os.path.join("output", output_path + ".jpg"), img)
+    pred = model(img)
+    pred_heatmap = pred[0, 0]
+    
+    print(pred_heatmap)
+    print(pred_heatmap.max(), pred_heatmap.min())
+    print(get_ball_position(pred_heatmap.detach().cpu().numpy(), opt, None))
+    
+    heatmap_numpy = pred_heatmap.detach().cpu().numpy() * 255
+    heatmap_numpy = heatmap_numpy.astype("uint")
+    print(heatmap_numpy)
+    print(np.where(heatmap_numpy == heatmap_numpy.max()))
+    cv.imwrite("/content/output/heatmap.png", heatmap_numpy)
+    
+    gt_heatmap = generate_heatmap_2(opt, 0.43828125, 0.6361111111111111, 5, 5)
+    print(gt_heatmap.min(), gt_heatmap.max())
+    print(get_ball_position(gt_heatmap, opt, None))
+    print(np.where(gt_heatmap == gt_heatmap.max()))
+    gt_heatmap = gt_heatmap * 255
+    gt_heatmap = gt_heatmap.astype("uint")
+    cv.imwrite("/content/output/gt.png", gt_heatmap)
+    

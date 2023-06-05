@@ -1,0 +1,1 @@
+python predict_single_frame.py --image_path "small-volleyball\001-mp4_snapshot_00-50_-2022-10-14_09-55-10-_jpg.rf.c20b41fd36e566ddac3ac1fc459ae14f.jpg" --image_size 640 640 --sequence_length 1 --weights "D:\Downloads\best (1).pt"

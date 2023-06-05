@@ -7,6 +7,27 @@ import os
 import numpy as np
 
 
+def generate_heatmap_2(opt, center_x, center_y, width, height):
+    """ Make a square gaussian kernel.
+
+    size is the length of a side of the square
+    fwhm is full-width-half-maximum, which
+    can be thought of as an effective radius.
+
+    source: https://stackoverflow.com/questions/7687679/how-to-generate-2d-gaussian-with-python
+    """
+    x = np.arange(0, opt.image_size[1], 1, float)
+    y = np.arange(0, opt.image_size[0], 1, float)[:,np.newaxis]
+
+    x0 = opt.image_size[1]*center_x
+    y0 = opt.image_size[0]*center_y
+    width = opt.image_size[1]*width
+    height = opt.image_size[0]*height
+
+    image = np.exp(-4*np.log(2) * ((x-x0)**2/width**2 + (y-y0)**2/height**2))
+    return image
+
+
 def get_ball_position(img, opt, original_img_=None):
     ret, thresh = cv.threshold(img, opt.brightness_thresh, 1, 0)
     thresh = cv.convertScaleAbs(thresh)
@@ -39,39 +60,17 @@ def parse_opt():
     parser.add_argument('--visualize', action='store_true', help='Display the predictions in real time.')
     parser.add_argument('--waitBetweenFrames', type=int, default=100, help='Wait time in milliseconds between showing frames predicted in one forward pass.')
     parser.add_argument('--brightness_thresh', type=float, default=0.7, help='Result heatmap pixel brightness threshold')
-    parser.add_argument('--image_path', type=str, required=True, help='Image path for predict')
+    # parser.add_argument('--image_path', type=str, required=True, help='Image path for predict')
     opt = parser.parse_args()
     return opt
 
 if __name__ == '__main__':
     opt = parse_opt()
-    img_path = vars(opt)['image_path']
+    gt_heatmap = generate_heatmap_2(opt, 0.43828125, 0.6361111111111111, 5, 5)
+    print(gt_heatmap.min(), gt_heatmap.max())
+    print(get_ball_position(gt_heatmap, opt, None))
+    print(np.where(gt_heatmap == gt_heatmap.max()))
+    gt_heatmap = gt_heatmap * 255
+    gt_heatmap = gt_heatmap.astype("uint")
+    cv.imwrite("output/gt.png", gt_heatmap)
     
-    opt.dropout = 0
-    device = torch.device(opt.device)
-    model = TrackNet(opt).to(device)
-    model.load(opt.weights, device = opt.device)
-    model.eval()
-
-    img = cv.imread(img_path)
-    frames_torch = []
-    frame_torch = torch.tensor(img).permute(2, 0, 1).float().to(device) / 255
-    frame_torch = torchvision.transforms.functional.resize(frame_torch, opt.image_size, antialias=True)
-    frames_torch.append(frame_torch)
-    frames_torch = torch.cat(frames_torch, dim=0).unsqueeze(0)
-    pred = model(frames_torch)
-    pred = pred[0, :, :, :].detach().cpu().numpy()
-    
-    pred_frame = pred[0, :, :]
-    ball_position = np.argmax(pred_frame)
-    y, x = np.where(pred_frame == np.max(pred_frame))
-    x, y = x[0], y[0]
-    print(x, y)
-    
-    print(get_ball_position(pred_frame, opt, img))
-
-    pt1, pt2 = (x-10, y-10), (x+10, y+10)
-    cv.rectangle(img, pt1, pt2, (0, 0, 255), 5)
-
-    output_path = img_path.split("\\")[-2]
-    cv.imwrite(os.path.join("output", output_path + ".jpg"), img)
