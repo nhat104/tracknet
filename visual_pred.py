@@ -87,7 +87,7 @@ if __name__ == '__main__':
     model.eval()
     
     img = torchvision.io.read_image(img_path)
-    img = torchvision.transforms.Grayscale()(img)
+    # img = torchvision.transforms.Grayscale()(img)
     img = torchvision.transforms.functional.resize(img, opt.image_size, antialias=True)
     img = img.type(torch.float32)
     img *= 1 / 255

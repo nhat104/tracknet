@@ -255,8 +255,6 @@ if __name__ == '__main__':
     train_dataset, test_dataset = random_split(full_dataset, [train_size, val_size])
     
     print(len(full_dataset))
-    train_dataset = [full_dataset[0]]
-    test_dataset = [full_dataset[0]]
 
     train_loader = DataLoader(train_dataset, batch_size=opt.batch_size, shuffle=(not opt.no_shuffle))
     val_loader = DataLoader(test_dataset, batch_size=opt.val_batch_size)
