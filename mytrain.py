@@ -67,6 +67,25 @@ class AdaptiveWingLoss(torch.nn.Module):
         C = self.theta * A - self.omega * torch.log(1 + torch.pow(self.theta / self.epsilon, self.alpha - y2))
         loss2 = A * delta_y2 - C
         return (loss1.sum() + loss2.sum()) / (len(loss1) + len(loss2))
+    
+class FocalLoss(torch.nn.Module):
+    def __init__(self, gamma=3) -> None:
+        super(FocalLoss, self).__init__()
+        self.gamma = gamma
+        self.BCELoss = torch.nn.BCELoss(reduction="none")
+        
+    def forward(self, pred, target):
+        background = torch.where(target == 0)
+        foreground = torch.where(target != 0)
+        
+        loss_background = self.BCELoss(1 - pred[background], 1 - target[background])
+        loss_foreground = self.BCELoss(1 - pred[foreground], 1 - target[foreground])
+        
+        loss_background = loss_background.sum() / background[0].size(0)
+        loss_foreground = loss_foreground.sum() / foreground[0].size(0)
+        
+        loss = loss_background + loss_foreground  
+        return loss.mean()
 
 
 def parse_opt():
@@ -230,7 +249,8 @@ if __name__ == '__main__':
         'wbce': wbce_loss,
         'l1': torch.nn.L1Loss(),
         'adwing': AdaptiveWingLoss(),
-        'my_loss': construct_my_loss(opt)
+        'my_loss': construct_my_loss(opt),
+        "focal_loss": FocalLoss(gamma=3)
     }
     loss_function = loss_functions[opt.loss_function]
 
@@ -252,6 +272,7 @@ if __name__ == '__main__':
 
     train_size = int(opt.train_size * len(full_dataset))
     val_size = len(full_dataset) - train_size
+    # train_dataset[0] -> X, heatmaps
     train_dataset, test_dataset = random_split(full_dataset, [train_size, val_size])
     
     print(len(full_dataset))
@@ -292,6 +313,8 @@ if __name__ == '__main__':
     for epoch in tqdm(range(num_epochs)):
         train_losses = []
         val_losses = []
+        
+        # train
         for batch_data in train_loader:
             optimizer.zero_grad()
             X, y = batch_data

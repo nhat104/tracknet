@@ -50,28 +50,32 @@ if __name__ == '__main__':
     opt.dropout = 0
     device = torch.device(opt.device)
     model = TrackNet(opt).to(device)
-    model.load(opt.weights, device = opt.device)
+    # model.load(opt.weights, device = opt.device)
+    model.load_state_dict(torch.load(opt.weights, map_location=torch.device('cpu')))
     model.eval()
 
     img = cv.imread(img_path)
-    frames_torch = []
-    frame_torch = torch.tensor(img).permute(2, 0, 1).float().to(device) / 255
-    frame_torch = torchvision.transforms.functional.resize(frame_torch, opt.image_size, antialias=True)
-    frames_torch.append(frame_torch)
-    frames_torch = torch.cat(frames_torch, dim=0).unsqueeze(0)
-    pred = model(frames_torch)
-    pred = pred[0, :, :, :].detach().cpu().numpy()
     
-    pred_frame = pred[0, :, :]
-    ball_position = np.argmax(pred_frame)
+    rgb_image = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+    image = torchvision.transforms.ToTensor()(rgb_image)
+    image = torchvision.transforms.Resize(size=opt.image_size, antialias=True)(image)
+    image = image.type(torch.float32)
+    # image *= 1 / 255
+    image = image.unsqueeze(0)
+    
+    pred = model(image)
+    pred_frame = pred[0, 0]
+    pred_frame = pred_frame.detach().numpy()
+    
+    heatmap = (pred_frame * 255).astype(np.uint8)
+    cv.imwrite("./output/heatmap.jpg", heatmap)
+    
     y, x = np.where(pred_frame == np.max(pred_frame))
     x, y = x[0], y[0]
-    print(x, y)
     
-    print(get_ball_position(pred_frame, opt, img))
-
-    pt1, pt2 = (x-10, y-10), (x+10, y+10)
-    cv.rectangle(img, pt1, pt2, (0, 0, 255), 5)
-
-    output_path = img_path.split("\\")[-2]
-    cv.imwrite(os.path.join("output", output_path + ".jpg"), img)
+    h, w = img.shape[:2]
+    center = (int(x / opt.image_size[1] * w), int(y / opt.image_size[0] * h))
+    print(center)
+    cv.circle(img, center, 5, (0, 255, 0), 2)
+    cv.imshow("", img)
+    cv.waitKey()

@@ -1,0 +1,1 @@
+python predict_single_frame.py --weights ./weight.pth --image_size 360 640 --image_path video/1.jpg --sequence_length 1

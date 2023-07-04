@@ -82,7 +82,7 @@ if __name__ == '__main__':
     model = TrackNet(opt).to(device)
     # model.load(opt.weights, device = opt.device)
     # model.eval()
-    model.load_state_dict(torch.load(opt.weights))
+    model.load_state_dict(torch.load(opt.weights, map_location=torch.device('cpu')))
     model = model.to(device)
     model.eval()
     
@@ -95,8 +95,8 @@ if __name__ == '__main__':
     img = img.unsqueeze(0)
     
     img = img.to(device)
-    
-    print(img.shape)
+
+    print(img)    
 
     pred = model(img)
     pred_heatmap = pred[0, 0]
@@ -106,16 +106,13 @@ if __name__ == '__main__':
     print(get_ball_position(pred_heatmap.detach().cpu().numpy(), opt, None))
     
     heatmap_numpy = pred_heatmap.detach().cpu().numpy() * 255
-    heatmap_numpy = heatmap_numpy.astype("uint")
-    print(heatmap_numpy)
-    print(np.where(heatmap_numpy == heatmap_numpy.max()))
-    cv.imwrite("/content/output/heatmap.png", heatmap_numpy)
+    heatmap_numpy = heatmap_numpy.astype(np.uint)
+    y, x = np.where(heatmap_numpy == heatmap_numpy.max())
+    y, x = y[0], x[0]
     
-    gt_heatmap = generate_heatmap_2(opt, 0.43828125, 0.6361111111111111, 5, 5)
-    print(gt_heatmap.min(), gt_heatmap.max())
-    print(get_ball_position(gt_heatmap, opt, None))
-    print(np.where(gt_heatmap == gt_heatmap.max()))
-    gt_heatmap = gt_heatmap * 255
-    gt_heatmap = gt_heatmap.astype("uint")
-    cv.imwrite("/content/output/gt.png", gt_heatmap)
-    
+    img = cv.imread(opt.image_path)
+    h, w = img.shape[:2]
+    center = (int(x / opt.image_size[1] * w), int(y / opt.image_size[0] * h))
+    cv.circle(img, center, 5, (0, 255, 0), 2)
+    cv.imwrite("./output/predict.jpg", img)
+    cv.imwrite("./output/heatmap.jpg", heatmap_numpy.astype(np.uint8))
